@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.text.DecimalFormat
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,9 +30,9 @@ fun TipCalcApp() {
     }
 }
 
-/* ---------- Утилиты / логика ---------- */
+/* ---------- ЛОГИКА ---------- */
 
-/** Разрешаем только цифры и , . ; запятую превращаем в точку. */
+// Разрешаем только цифры и , . ; запятую превращаем в точку.
 private fun keepDigitsCommaDot(src: String): String {
     val sb = StringBuilder(src.length)
     var i = 0
@@ -45,19 +46,22 @@ private fun keepDigitsCommaDot(src: String): String {
     return sb.toString()
 }
 
+// Безопасный парсинг Float/Int через Java API (никаких Kotlin-экстеншенов)
+private fun parseFloatSafe(s: String): Float =
+    try { java.lang.Float.parseFloat(s) } catch (_: Exception) { 0f }
 
-// безопасный парсинг
 private fun parseIntSafe(s: String): Int =
     try { java.lang.Integer.parseInt(s) } catch (_: Exception) { 0 }
 
-
-/** Скидка в % по количеству блюд. */
+// Скидка в % по количеству блюд
 private fun discountFor(dishes: Int): Int =
     if (dishes <= 0) 0
     else if (dishes <= 2) 3
     else if (dishes <= 5) 5
     else if (dishes <= 10) 7
     else 10
+
+private val money2 = DecimalFormat("#0.00")
 
 /* ---------- UI ---------- */
 
@@ -66,12 +70,17 @@ fun TipCalcScreen(modifier: Modifier = Modifier) {
     var sumText by rememberSaveable { mutableStateOf("") }     // сумма заказа (строкой)
     var dishesText by rememberSaveable { mutableStateOf("") }  // кол-во блюд (строкой)
 
-    // Слайдер чаевых: храним 0..1 и маппим в 0..25 (%)
+    // Слайдер: храним 0..1 и маппим в 0..25 (%)
     var tipT by rememberSaveable { mutableFloatStateOf(0f) }   // 0..1
-    val tip = tipT * 25f                                       // 0..25 — пригодится на шаге 5
+    val tip = tipT * 25f                                       // 0..25
 
+    val sum = parseFloatSafe(sumText)
     val dishes = parseIntSafe(dishesText)
-    val discount = discountFor(dishes) // программно определяем выбранную скидку
+    val discount = discountFor(dishes)
+
+    // Расчёты
+    val tipAmount = sum * (tip / 100f)
+    val discounted = sum * (1f - discount / 100f)
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -85,14 +94,14 @@ fun TipCalcScreen(modifier: Modifier = Modifier) {
         Text("Чаевые:", fontSize = 16.sp)
         Slider(
             value = tipT,
-            onValueChange = { tipT = it },                // 0..1
+            onValueChange = { tipT = it }, // 0..1
             modifier = Modifier.fillMaxWidth()
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("0"); Text("25")
         }
 
-        // Радиокнопки (некликабельные — выбор только программно)
+        // Скидка — радиокнопки выбираются ПРОГРАММНО (пользователь не кликает)
         Text("Скидка:", fontSize = 22.sp)
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -104,6 +113,13 @@ fun TipCalcScreen(modifier: Modifier = Modifier) {
             DiscountRadio(discount == 7, 7)
             DiscountRadio(discount == 10, 10)
         }
+
+        // Итоги
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Чаевые: ${money2.format(tipAmount)}")
+            Text("Скидка: $discount%")
+            Text("Итого со скидкой (без учёта чаевых): ${money2.format(discounted)}")
+        }
     }
 }
 
@@ -111,6 +127,7 @@ fun TipCalcScreen(modifier: Modifier = Modifier) {
 private fun LabeledField(label: String, value: String, onValueChange: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(label)
+        // максимально просто — без KeyboardOptions
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
