@@ -10,6 +10,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,14 +33,31 @@ fun TipCalcScreen(modifier: Modifier = Modifier) {
     var sumText by rememberSaveable { mutableStateOf("") }
     var dishesText by rememberSaveable { mutableStateOf("") }
 
+    // Слайдер храним как 0..1, а отображаем как 0..25 (%)
+    var tipT by rememberSaveable { mutableFloatStateOf(0f) }  // 0..1
+    val tip = tipT * 25f                                      // 0..25 — пригодится дальше
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
+        // Поля ввода
         LabeledField("Сумма заказа:", sumText) { sumText = keepDigitsCommaDot(it) }
         LabeledField("Количество блюд:", dishesText) { dishesText = keepDigitsCommaDot(it) }
+
+        // Слайдер чаевых
+        Text("Чаевые:", fontSize = 16.sp)
+        Slider(
+            value = tipT,
+            onValueChange = { tipT = it },  // 0..1
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("0"); Text("25")
+        }
     }
 }
+
 
 @Composable
 private fun LabeledField(label: String, value: String, onValueChange: (String) -> Unit) {
